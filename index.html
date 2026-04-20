@@ -951,7 +951,7 @@ async function sendToSheets() {
 }
 
 async function saveMatrixToSheets() {
-  const url = prompt('Enter your Google Apps Script Web App URL:');
+  const url = prompt('https://script.google.com/macros/s/AKfycbyyrkW_1puuIgigMO9qO9HpVI2OdqzjaY3xF3i1evAdjcfksUNa_yJE6RsS05jS0JbFTA/exec');
   if (!url || !matrixData.length) return;
   try {
     const res = await fetch(url, { method: 'POST', body: JSON.stringify({ source: 'claude_analysis', signals: matrixData }) });
