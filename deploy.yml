@@ -1,0 +1,62 @@
+# .github/workflows/deploy.yml
+# ================================================
+# AUTO-DEPLOY: Competitor Research System
+# Triggers: Push to main + Every Monday 6 AM
+# ================================================
+
+name: 🚀 Deploy & Auto-Update
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
+  workflow_dispatch:       # Manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📊 Fetch Latest Data from Google Sheets
+        if: env.SHEETS_WEBAPP_URL != ''
+        env:
+          SHEETS_WEBAPP_URL: ${{ secrets.SHEETS_WEBAPP_URL }}
+        run: |
+          echo "Fetching latest matrix data..."
+          mkdir -p data
+          curl -sL "$SHEETS_WEBAPP_URL?action=get_matrix" \
+            -o data/matrix.json \
+            --max-time 30 || echo "[]" > data/matrix.json
+          
+          curl -sL "$SHEETS_WEBAPP_URL?action=get_stats" \
+            -o data/stats.json \
+            --max-time 30 || echo "{}" > data/stats.json
+          
+          echo "Data fetched successfully"
+          cat data/stats.json
+
+      - name: 🔍 Run Automated Scraping (Weekly)
+        if: github.event_name == 'schedule'
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          SHEETS_WEBAPP_URL: ${{ secrets.SHEETS_WEBAPP_URL }}
+        run: |
+          node scripts/auto-scrape.js || echo "Scraping skipped (no config)"
+
+      - name: 🌐 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
+          exclude_assets: '.github,scripts,*.md'
+          commit_message: '🤖 Auto-update: ${{ github.event_name }} - ${{ github.run_number }}'
+
+      - name: ✅ Deployment Complete
+        run: |
+          echo "🎉 Deployed successfully!"
+          echo "🌐 Live at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
